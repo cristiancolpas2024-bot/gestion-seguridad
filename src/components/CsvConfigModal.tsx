@@ -144,7 +144,7 @@ export const CsvConfigModal: React.FC<CsvConfigModalProps> = ({
               className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold rounded-md transition-colors"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-              <span>{isLoading ? 'Cargando datos...' : 'Guardar y Leer en Vivo'}</span>
+              <span>{isLoading ? 'Sincronizando...' : 'Guardar y Dejar Fijo en el Código'}</span>
             </button>
           </div>
 
