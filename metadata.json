@@ -1,0 +1,6 @@
+{
+  "name": "DC Barranquilla2 - Seguimiento de ACIs",
+  "description": "Tablero de seguimiento de ACIs de DC Barranquilla2 con cumplimiento mensual y detalle de reportes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
