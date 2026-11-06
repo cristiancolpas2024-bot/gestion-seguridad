@@ -4,15 +4,19 @@ import { DEFAULT_URL_MENSUAL, DEFAULT_URL_CUMPLIMIENTO } from './config/sources'
 import { parseMensualCsv, parseCumplimientoCsv, fetchLiveCsv, convertGoogleSheetUrlToCsv } from './services/csvParser';
 import { TabMensual } from './components/TabMensual';
 import { TabCumplimiento } from './components/TabCumplimiento';
+import { ModuloEntradaPortal } from './components/ModuloEntradaPortal';
 import { CsvConfigModal } from './components/CsvConfigModal';
-import { Calendar, ListChecks, Shield, RefreshCw, Link2, FileSpreadsheet } from 'lucide-react';
+import { Calendar, ListChecks, Shield, RefreshCw, Link2, FileSpreadsheet, Home } from 'lucide-react';
 
 // Sube la versión de las claves de localStorage para descartar valores viejos guardados
 const STORAGE_KEY_URL_MENSUAL = 'aci_csv_url_mensual_v3';
 const STORAGE_KEY_URL_CUMPLIMIENTO = 'aci_csv_url_cumplimiento_v3';
 
 export default function App() {
-  // Pestañas activas: SOLO DOS PESTAÑAS ("Mensual" y "Cumplimiento")
+  // Vista actual: 'portal' (Módulo de Entrada estilo foto) o 'dashboard' (Tablero con pestañas)
+  const [currentView, setCurrentView] = useState<'portal' | 'dashboard'>('portal');
+
+  // Pestañas activas del Dashboard: SOLO DOS PESTAÑAS ("Mensual" y "Cumplimiento")
   const [activeTab, setActiveTab] = useState<'mensual' | 'cumplimiento'>('mensual');
 
   // Datos en vivo leídos desde Google Sheets (ya NO cargan asset local de prueba)
@@ -203,52 +207,81 @@ export default function App() {
 
   const hasConfiguredUrls = Boolean(urlMensual || urlCumplimiento);
 
+  // VISTA 1: Módulo de Entrada (Portal con estilo de la foto)
+  if (currentView === 'portal') {
+    return (
+      <>
+        <ModuloEntradaPortal
+          onEnter={(targetTab) => {
+            if (targetTab) setActiveTab(targetTab);
+            setCurrentView('dashboard');
+          }}
+          colaboradoresCount={mensualData.length}
+          reportesCount={cumplimientoData.length}
+          isLiveConnected={isLiveConnected}
+        />
+
+        {/* Modal de Configuración y Vinculación de Enlaces de Google Sheets */}
+        <CsvConfigModal
+          isOpen={isConfigModalOpen}
+          onClose={() => setIsConfigModalOpen(false)}
+          urlMensual={urlMensual}
+          urlCumplimiento={urlCumplimiento}
+          onSave={handleSaveUrls}
+          isLoading={isLoading}
+          lastUpdated={lastUpdated}
+          statusMessage={statusMessage}
+        />
+      </>
+    );
+  }
+
+  // VISTA 2: Dashboard con las dos pestañas ("Mensual" y "Cumplimiento")
   return (
-    <div className="min-h-screen bg-slate-100/70 text-slate-800 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#F4F6F5] text-[#1F2937] flex flex-col font-sans">
       
-      {/* Top Bar Corporativa Sobria para Gerencia */}
-      <header className="bg-slate-900 border-b border-slate-800 text-white shadow-xs sticky top-0 z-20">
+      {/* Top Bar Corporativa Sobria (#0B1220) */}
+      <header className="bg-[#0B1220] border-b border-[#1E293B] text-white shadow-xs sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 gap-4">
             
-            {/* Título de la Aplicación e Identidad */}
-            <div className="flex items-center gap-3 shrink-0">
-              <div className="w-8 h-8 rounded-md bg-blue-600 flex items-center justify-center text-white font-bold">
-                <Shield className="w-4 h-4 text-white" />
+            {/* Logo y Encabezado: Permite volver a la pantalla de entrada */}
+            <button
+              type="button"
+              onClick={() => setCurrentView('portal')}
+              className="flex items-center gap-3 shrink-0 text-left cursor-pointer group p-1 -ml-1 rounded transition-colors"
+              title="Volver a la pantalla de entrada"
+            >
+              <img
+                src="/assets/logisticos.png"
+                alt="Logisticos"
+                className="h-8 w-auto max-w-[120px] object-contain"
+                onError={(e) => {
+                  (e.currentTarget as HTMLElement).style.display = 'none';
+                }}
+              />
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-xs bg-[#85D60F] inline-block shrink-0" />
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold tracking-tight text-white whitespace-nowrap group-hover:text-[#85D60F] transition-colors">
+                    Seguimiento Galapa <span className="text-[#6B7280] font-normal">| Seguimiento de ACIs</span>
+                  </span>
+                  <span className="text-[10px] text-[#6B7280] tracking-wider uppercase">
+                    DC Barranquilla2 · Logísticos SST
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-bold tracking-tight text-white whitespace-nowrap">
-                  DC Barranquilla2 <span className="text-slate-400 font-normal">| Seguimiento de ACIs</span>
-                </span>
-                <span className="text-[11px] text-slate-400 whitespace-nowrap flex items-center gap-1.5">
-                  {isLiveConnected ? (
-                    <>
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                      <span className="text-emerald-400 font-medium">Vinculado a Google Sheets en Vivo</span>
-                    </>
-                  ) : hasConfiguredUrls ? (
-                    <>
-                      <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                      <span className="text-amber-400">Conectando a Google Sheets...</span>
-                    </>
-                  ) : (
-                    <>
-                      <FileSpreadsheet className="w-3 h-3 text-slate-400" />
-                      <span className="text-slate-400">Pendiente vincular enlace de hoja</span>
-                    </>
-                  )}
-                </span>
-              </div>
-            </div>
+            </button>
 
             {/* SOLO DOS PESTAÑAS: "Mensual" y "Cumplimiento" */}
-            <nav className="flex items-center gap-1 bg-slate-800/90 p-1 rounded-lg border border-slate-700/60">
+            <nav className="flex items-center gap-1 bg-[#131D31] p-1 rounded-lg border border-[#1E293B]">
               <button
+                type="button"
                 onClick={() => setActiveTab('mensual')}
-                className={`flex items-center gap-2 px-4 py-1.5 text-xs font-bold rounded-md transition-colors whitespace-nowrap ${
+                className={`flex items-center gap-2 px-4 py-1.5 text-xs font-bold rounded-md transition-colors whitespace-nowrap cursor-pointer ${
                   activeTab === 'mensual'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-700/60'
+                    ? 'bg-[#85D60F] text-[#0B1220] shadow-xs'
+                    : 'text-[#9CA3AF] hover:text-white hover:bg-[#1E293B]'
                 }`}
               >
                 <Calendar className="w-3.5 h-3.5" />
@@ -256,11 +289,12 @@ export default function App() {
               </button>
 
               <button
+                type="button"
                 onClick={() => setActiveTab('cumplimiento')}
-                className={`flex items-center gap-2 px-4 py-1.5 text-xs font-bold rounded-md transition-colors whitespace-nowrap ${
+                className={`flex items-center gap-2 px-4 py-1.5 text-xs font-bold rounded-md transition-colors whitespace-nowrap cursor-pointer ${
                   activeTab === 'cumplimiento'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-700/60'
+                    ? 'bg-[#85D60F] text-[#0B1220] shadow-xs'
+                    : 'text-[#9CA3AF] hover:text-white hover:bg-[#1E293B]'
                 }`}
               >
                 <ListChecks className="w-3.5 h-3.5" />
@@ -270,25 +304,38 @@ export default function App() {
 
             {/* Acciones de Sincronización y Enlace de Google Sheets */}
             <div className="flex items-center gap-2 shrink-0">
+              {/* Botón Volver a la Pantalla de Entrada */}
+              <button
+                type="button"
+                onClick={() => setCurrentView('portal')}
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#9CA3AF] hover:text-white bg-[#131D31] hover:bg-[#1E293B] border border-[#1E293B] rounded-md transition-colors cursor-pointer"
+                title="Volver a la pantalla de entrada"
+              >
+                <Home className="w-3.5 h-3.5 text-[#85D60F]" />
+                <span>Inicio</span>
+              </button>
+
               {/* Botón Refrescar */}
               <button
+                type="button"
                 onClick={() => fetchAllData()}
                 disabled={isLoading}
                 title="Actualizar datos desde Google Sheets (refresco cada hora)"
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#9CA3AF] hover:text-white bg-[#131D31] hover:bg-[#1E293B] border border-[#1E293B] rounded-md transition-colors disabled:opacity-50 cursor-pointer"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-blue-400' : ''}`} />
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-[#85D60F]' : ''}`} />
                 <span className="hidden sm:inline">Refrescar</span>
               </button>
 
               {/* Botón Vincular Hoja */}
               <button
+                type="button"
                 onClick={() => setIsConfigModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white rounded-md transition-colors shadow-xs"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-[#85D60F] hover:bg-[#5F9A0A] hover:text-white text-[#0B1220] rounded-md transition-colors shadow-xs cursor-pointer"
                 title="Vincular o modificar enlace de la hoja Google Sheets"
               >
                 <Link2 className="w-3.5 h-3.5" />
-                <span>Vincular Enlace Hoja</span>
+                <span className="hidden sm:inline">Vincular Enlace Hoja</span>
               </button>
             </div>
 
@@ -297,14 +344,14 @@ export default function App() {
       </header>
 
       {/* Banner de Estado de Vinculación y Fuentes */}
-      <div className="bg-slate-50 border-b border-slate-200 py-2 px-4 text-xs">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-slate-600">
+      <div className="bg-[#FFFFFF] border-b border-[#E3E8E6] py-2 px-4 text-xs">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[#6B7280]">
           <div className="flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full shrink-0 ${isLiveConnected ? 'bg-emerald-500' : hasConfiguredUrls ? 'bg-amber-500' : 'bg-slate-400'}`}></span>
+            <span className={`w-2 h-2 rounded-full shrink-0 ${isLiveConnected ? 'bg-[#85D60F]' : hasConfiguredUrls ? 'bg-[#B8860B]' : 'bg-[#6B7280]'}`}></span>
             <span>
               {isLiveConnected ? (
                 <>
-                  Datos en vivo desde Google Sheets: <strong className="text-slate-900">{mensualData.length} colaboradores</strong> en Mensual y <strong className="text-slate-900">{cumplimientoData.length} reportes</strong> en Cumplimiento.
+                  Datos en vivo desde Google Sheets: <strong className="text-[#1F2937]">{mensualData.length} colaboradores</strong> en Mensual y <strong className="text-[#1F2937]">{cumplimientoData.length} reportes</strong> en Cumplimiento.
                 </>
               ) : hasConfiguredUrls ? (
                 <span>Conectando a las URLs de Google Sheets...</span>
@@ -313,11 +360,12 @@ export default function App() {
               )}
             </span>
           </div>
-          <div className="flex items-center gap-3 text-[11px] text-slate-500 shrink-0">
+          <div className="flex items-center gap-3 text-[11px] text-[#6B7280] shrink-0">
             {lastUpdated && <span>Última sincronización: {lastUpdated.toLocaleTimeString()}</span>}
             <button
+              type="button"
               onClick={() => setIsConfigModalOpen(true)}
-              className="text-blue-600 hover:text-blue-800 font-semibold underline"
+              className="text-[#1F2937] hover:text-[#5F9A0A] font-semibold underline cursor-pointer"
             >
               {hasConfiguredUrls ? 'Ver / Editar enlaces vinculados' : 'Vincular enlace Google Sheets'}
             </button>
@@ -330,19 +378,20 @@ export default function App() {
         
         {/* Callout si no se han cargado datos todavía */}
         {!hasConfiguredUrls && mensualData.length === 0 && cumplimientoData.length === 0 && (
-          <div className="bg-white rounded-xl border border-blue-200 p-6 mb-6 shadow-xs text-center">
-            <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-3">
+          <div className="bg-[#FFFFFF] rounded-lg border border-[#E3E8E6] p-6 mb-6 shadow-xs text-center">
+            <div className="w-12 h-12 bg-[#F4F6F5] text-[#5F9A0A] rounded-full flex items-center justify-center mx-auto mb-3 border border-[#E3E8E6]">
               <FileSpreadsheet className="w-6 h-6" />
             </div>
-            <h3 className="text-sm font-bold text-slate-900 mb-1">
+            <h3 className="text-sm font-bold text-[#1F2937] mb-1">
               Vinculación Directa con Google Sheets (DC Barranquilla2)
             </h3>
-            <p className="text-xs text-slate-500 max-w-lg mx-auto mb-4">
+            <p className="text-xs text-[#6B7280] max-w-lg mx-auto mb-4">
               La aplicación lee automáticamente los datos en vivo publicados como CSV desde tus hojas <strong>MENSUAL</strong> y <strong>SEGUIMIENTO</strong>, refrescándolos cada hora sin intervención.
             </p>
             <button
+              type="button"
               onClick={() => setIsConfigModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg shadow-xs transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#85D60F] hover:bg-[#5F9A0A] hover:text-white text-[#0B1220] text-xs font-bold rounded shadow-xs transition-colors cursor-pointer"
             >
               <Link2 className="w-3.5 h-3.5" />
               <span>Pegar Enlaces CSV de Google Sheets</span>
@@ -353,7 +402,7 @@ export default function App() {
         {/* Tab 1: Mensual / Tab 2: Cumplimiento */}
         {activeTab === 'mensual' ? (
           /* PESTAÑA 1 — "Mensual" (usa la FUENTE 1) */
-          <TabMensual data={mensualData} seguimientoData={cumplimientoData} />
+          <TabMensual data={mensualData} />
         ) : (
           /* PESTAÑA 2 — "Cumplimiento" (usa la FUENTE 2) */
           <TabCumplimiento data={cumplimientoData} />
@@ -361,13 +410,13 @@ export default function App() {
       </main>
 
       {/* Footer Sobrio */}
-      <footer className="bg-white border-t border-slate-200 py-3 text-xs text-slate-500">
+      <footer className="bg-[#FFFFFF] border-t border-[#E3E8E6] py-3 text-xs text-[#6B7280]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div>
-            Centro de Distribución <strong>DC Barranquilla2</strong> · Seguridad y Salud en el Trabajo
+            Centro de Distribución <strong>DC Barranquilla2</strong> · Seguridad y Salud en el Trabajo · <strong>Logísticos.co</strong>
           </div>
-          <div className="text-[11px] text-slate-400">
-            Identidad confiable de la persona: <strong>Campo QR</strong>
+          <div className="text-[11px] text-[#6B7280]">
+            Identidad confiable de la persona: <strong className="text-[#1F2937]">Campo QR</strong>
           </div>
         </div>
       </footer>

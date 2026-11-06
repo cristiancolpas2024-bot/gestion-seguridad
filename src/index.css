@@ -26,3 +26,32 @@
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
+
+/* Animación del camión de reparto de Logísticos */
+@keyframes truckDrive {
+  0% {
+    left: -220px;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+@keyframes truckSuspension {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.8px);
+  }
+}
+
+.animate-truck-drive {
+  position: absolute;
+  animation: truckDrive 9s linear infinite;
+}
+
+.animate-truck-suspension {
+  animation: truckSuspension 0.45s ease-in-out infinite;
+}
+
