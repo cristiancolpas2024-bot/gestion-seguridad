@@ -86,6 +86,7 @@ export const DEFAULT_URL_CUMPLIMIENTO = ${JSON.stringify(cleanC)};
         headers: {
           'Accept': 'text/csv, text/plain, */*',
         },
+        redirect: 'follow',
       });
       if (!response.ok) {
         res.status(response.status).send(`Error Google Sheets: ${response.statusText}`);

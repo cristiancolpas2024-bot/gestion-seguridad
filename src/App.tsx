@@ -55,8 +55,8 @@ export default function App() {
 
   // Carga de datos desde URLs de Google Sheets (respeta gid y single=true sin quitarlos)
   const fetchAllData = useCallback(async (u1 = urlMensual, u2 = urlCumplimiento) => {
-    const trimmedU1 = u1 ? u1.trim() : '';
-    const trimmedU2 = u2 ? u2.trim() : '';
+    const trimmedU1 = (u1 && u1.trim().length > 0) ? u1.trim() : DEFAULT_URL_MENSUAL.trim();
+    const trimmedU2 = (u2 && u2.trim().length > 0) ? u2.trim() : DEFAULT_URL_CUMPLIMIENTO.trim();
 
     if (!trimmedU1 && !trimmedU2) {
       setIsLiveConnected(false);
@@ -141,32 +141,41 @@ export default function App() {
         const res = await fetch('/api/sources');
         if (res.ok) {
           const s = await res.json();
-          if (s.urlMensual && !activeU1) activeU1 = s.urlMensual;
-          if (s.urlCumplimiento && !activeU2) activeU2 = s.urlCumplimiento;
+          if (s.urlMensual && (!activeU1 || !activeU1.trim())) activeU1 = s.urlMensual;
+          if (s.urlCumplimiento && (!activeU2 || !activeU2.trim())) activeU2 = s.urlCumplimiento;
         }
       } catch {
         // Ignorar si no está disponible
       }
 
-      // Si el cliente tiene URLs activas, fijarlas permanentemente en el servidor
-      if (activeU1 || activeU2) {
-        setUrlMensual(activeU1);
-        setUrlCumplimiento(activeU2);
-        try {
-          fetch('/api/sources', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ urlMensual: activeU1, urlCumplimiento: activeU2 }),
-          }).catch(() => {});
-        } catch {
-          // Ignorar error de guardado
-        }
-        fetchAllData(activeU1, activeU2);
+      // Respaldo incondicional: si activeU1 o activeU2 quedan vacías, usar las constantes por defecto
+      if (!activeU1 || !activeU1.trim()) {
+        activeU1 = DEFAULT_URL_MENSUAL;
       }
+      if (!activeU2 || !activeU2.trim()) {
+        activeU2 = DEFAULT_URL_CUMPLIMIENTO;
+      }
+
+      setUrlMensual(activeU1);
+      setUrlCumplimiento(activeU2);
+
+      // Intentar guardar en backend si está disponible
+      try {
+        fetch('/api/sources', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ urlMensual: activeU1, urlCumplimiento: activeU2 }),
+        }).catch(() => {});
+      } catch {
+        // Ignorar error de guardado
+      }
+
+      // SIEMPRE llama a fetchAllData al montar
+      fetchAllData(activeU1, activeU2);
     };
 
     initAndSync();
-  }, []);
+  }, [fetchAllData]);
 
   // Auto-refresco en vivo cada hora (60 minutos)
   useEffect(() => {
